@@ -1,0 +1,65 @@
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
+import { errorHandler } from "./middlewares/errorHandler";
+import { notFound } from "./middlewares/notFound";
+
+import authRoutes from "./modules/auth/auth.routes";
+import studentRoutes from "./modules/student/student.routes";
+import companyRoutes from "./modules/company/company.routes";
+import collegeRoutes from "./modules/college/college.routes";
+import adminRoutes from "./modules/admin/admin.routes";
+import aiRoutes from "./modules/ai/ai.routes";
+import labourMarketRoutes from "./modules/labourMarket/labourMarket.routes";
+import curriculumRoutes from "./modules/curriculum/curriculum.routes";
+import employerValidationRoutes from "./modules/employerValidation/employerValidation.routes";
+
+const app = express();
+
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.set("trust proxy", 1);
+
+app.use(helmet());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // In development or when no origin is passed (like mobile apps/Postman), allow all
+      if (!origin || process.env.NODE_ENV !== "production") {
+        return callback(null, true);
+      }
+      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: "5mb" }));
+app.use(cookieParser());
+
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 });
+app.use("/api", apiLimiter);
+
+app.get("/api/health", (_req, res) => res.json({ status: "ok", service: "SkillBridge AI API", sihTrack: "SIH26134" }));
+
+app.use("/api/auth", authRoutes);
+app.use("/api/students", studentRoutes);
+app.use("/api/companies", companyRoutes);
+app.use("/api/colleges", collegeRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/labour-market", labourMarketRoutes);
+app.use("/api/curriculum", curriculumRoutes);
+app.use("/api/employer-validation", employerValidationRoutes);
+
+app.use(notFound);
+app.use(errorHandler);
+
+export default app;
